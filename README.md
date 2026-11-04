@@ -3,51 +3,56 @@
 **15-day practical network security and firewall engineering project** | VirtualBox · OPNsense · Kali Linux · Ubuntu · Windows
 
 ## Project overview
-This project documents the design, configuration and validation of a controlled virtual firewall lab. Each daily challenge records the business scenario, security objective, configuration steps, traffic path, test method, expected and actual results, troubleshooting notes, and evidence still required.
+I am building a controlled virtual enterprise network to understand how firewalls enforce security boundaries. Rather than collecting configuration screenshots alone, I am documenting why each rule exists, the packet path it affects, how I tested it, what failed, and what the evidence actually shows.
 
-**Current progress:** Day 1 interface and initial policy practice; Day 2 PASS/BLOCK rules and rule ordering; Day 3 protocol/port filtering using an Ubuntu Python HTTP server and Kali curl tests; Day 4 IP alias creation and an alias-based TCP/80 PASS rule. Day 4 traffic verification is still pending.
+**Status:** Days 1–2 concepts and experiments covered; Day 3 remains in progress; Day 4 alias configuration and a TCP/80 pass rule have been entered, but traffic verification is pending. The Windows → OPNsense → internal LAN topology is **proposed, not yet deployed or validated**.
 
-## Lab components
-- OPNsense firewall dashboard
-- Kali Linux — authorized test client
-- Ubuntu Linux — HTTP test server
-- VirtualBox — isolated virtual networking
-- Windows host — potential external test client in a later topology exercise
+## Objectives
+- Build a reproducible virtual network with distinct outside and inside trust zones.
+- Configure and validate inbound and outbound rules, state tracking, NAT, aliases, and segmentation.
+- Explore IDS/IPS, VPN, monitoring, backup, and incident response.
+- Produce traceable evidence: command outputs, packet captures, rule screenshots, timestamps, and observed outcomes.
+- Record failed tests without presenting them as successful deployments.
 
-## Proposed traffic model
-    Test client (Kali / Windows)
+## Proposed architecture
+```text
+Physical Windows host (outside test client)
               |
-       OPNsense firewall
-       [policy / routing]
+    OPNsense outside-facing interface
+        [routing / firewall / NAT]
+    OPNsense inside-facing interface
               |
-       Internal lab server
-          (Ubuntu HTTP)
+        Internal virtual LAN
+           /       \
+     Kali Linux   Ubuntu HTTP server
+```
+Kali and Ubuntu on the same Layer-2 LAN can communicate directly without crossing OPNsense; their east-west traffic is **not** protected by OPNsense merely because the firewall is their gateway. Windows-to-internal traffic must be deliberately routed/forwarded through OPNsense without a bypass path. VirtualBox adapter selection and addressing will be validated in the later topology challenge. All IPs shown in this repository are lab examples or redacted.
 
-The actual packet path must be confirmed for each test. Traffic between two VMs on the same Layer-2 network can bypass the firewall, even if OPNsense is configured as their default gateway. Do not assume a rule is filtering traffic unless the route and ingress interface prove that packets traverse the firewall.
+## Progress
+| Day | Focus | Evidence status |
+|---|---|---|
+| 01 | Basic firewall policy and logging | Concepts/lab covered; screenshots pending |
+| 02 | Rule matching, order and conflicts | Concepts/lab covered; screenshots pending |
+| 03 | Internal web access and stateful inspection | In progress; timeout/block observations recorded |
+| 04 | IP aliases and alias-based firewall policy | Alias with one host IP and TCP/80 pass rule configured; curl verification pending |
+| 05–15 | Remaining advanced topics | Planned |
 
-## Day-by-day progress
-| Day | Topic | Work recorded | Current status |
-|---|---|---|---|
-| 01 | Interface setup and firewall fundamentals | Dashboard, WAN/LAN/OPT1 roles, initial policy workflow | Covered; evidence screenshots pending |
-| 02 | PASS/BLOCK rules and rule order | Rule editor fields, source/destination matching, specific vs broad rules | Covered; evidence screenshots pending |
-| 03 | Protocol and port filtering | Ubuntu Python HTTP server, Kali curl baseline, TCP/80 BLOCK rule | Practiced; attach terminal and log evidence |
-| 04 | IP aliases | IP alias created with Kali host; alias used as source in TCP/80 PASS rule | Configured; curl/log verification pending |
-| 05–15 | Advanced firewall engineering | Segmentation, NAT, DHCP/DNS, monitoring, VPN, HA, IDS/IPS and capstone | Planned |
+See [the complete roadmap](ROADMAP.md) and [daily challenge notes](challenges/).
 
 ## Repository navigation
-- [15-day roadmap](ROADMAP.md)
-- [Daily challenge index](challenges/README.md)
-- [Day 01 — Firewall setup](challenges/day-01-firewall-basics/README.md)
-- [Day 02 — PASS/BLOCK and rule order](challenges/day-02-rule-processing/README.md)
-- [Day 03 — Protocol and port filtering](challenges/day-03-stateful-inspection/README.md)
-- [Day 04 — IP aliases](challenges/day-04-aliases/README.md)
-- [Configuration register](configuration/README.md)
+- [Architecture](architecture/README.md) — proposed topology, IP planning and packet paths
+- [Configuration](configuration/README.md) — policies, aliases, NAT and change control
+- [Challenges](challenges/README.md) — day-by-day work
+- [Troubleshooting](troubleshooting/incident-journal.md) — observed problems and investigation
+- [Evidence](evidence/README.md) — screenshots and capture requirements
+- [Final report](final-report/README.md) — capstone assessment template
+- [LinkedIn posts](linkedin-posts/README.md) — evidence-backed communication
 
-## Evidence and accuracy standard
-A configured rule is not automatically a verified result. Each test must include the actual client command/output and a corresponding firewall log where possible. A timeout alone does not prove a firewall block. Screenshots and logs should be added only after they are captured from the lab.
+## Validation standard
+Each day distinguishes **planned**, **configured**, **observed**, and **verified**. A timeout is not proof of a particular firewall rule; a logged ICMP block is not evidence that HTTP was blocked. Screenshots and tests will be added after they are actually collected.
 
-## Address masking and safety
-Public documentation uses role labels such as **KALI_HOST** and **UBUNTU_SERVER** instead of actual IP addresses. Keep the real values only in the private lab notes. Never publish credentials, sensitive host details, or unredacted firewall exports. Keep test services isolated and do not expose them to the public internet.
+## Safety
+This is an authorized isolated homelab. Do not expose test servers to public networks. Remove or redact real credentials, public IPs, host identifiers and sensitive network details before publishing.
 
-## Next action
-Finish Day 4 by testing HTTP access through the alias-based PASS rule, collecting the curl output and matching firewall log, then performing a controlled BLOCK test if the PASS baseline is confirmed.
+## Next milestone
+**Day 4 verification:** test Kali → Ubuntu HTTP access through the alias-based rule, inspect the matching firewall log/state, then test a controlled block. Only after collecting the output will the result be marked verified.
