@@ -1,42 +1,75 @@
-# Day 03 — Internal server protection and stateful inspection
+# Day 03 — Protocol and port filtering with an Ubuntu Python HTTP server
 
-**Status: IN PROGRESS — HTTP success and state-table behavior not yet verified.**
+**Progress: HTTP baseline and HTTP blocking were practiced.** Exact screenshots, timestamps and complete terminal output should be added from the lab before independent evidence verification.
 
 ## Business scenario
-An internal Ubuntu HTTP server must be reachable only through an intended security boundary. ICMP and TCP access should be governed by explicit policies.
+An internal Ubuntu machine hosts a simple HTTP service. The security engineer must allow or block access to that service from a Kali test machine using a specific firewall rule, rather than blocking all traffic.
 
-## Historical lab context
-Earlier experiments used Kali `192.168.254.3` and Ubuntu `192.168.1.2` on different subnets, with Kali-side traffic reported on OPNsense OPT1. This was an earlier topology and is not the proposed same-LAN redesign.
+## Lab roles
+- Kali Linux: authorized test client; address represented as **KALI_IP**.
+- Ubuntu Linux: HTTP server; address represented as **UBUNTU_IP**.
+- OPNsense: routes/filters traffic between the lab networks; the relevant incoming interface is OPT1.
+- Service under test: HTTP over TCP destination port **80**.
 
-## Recorded tests and observations
-1. A Python HTTP server was started on Ubuntu using port **80**, as clarified during the lab discussion. The exact launch command/output was not preserved.
-2. From Kali, `curl -v --connect-timeout 5 http://192.168.1.2:80/` produced:
-   ```text
-   Trying 192.168.1.2:80...
-   Connection timed out after 5003 milliseconds
-   curl: (28) Connection timed out after 5003 milliseconds
-   ```
-3. The supplied OPNsense Live View showed **OPT1 / In / ICMP / 192.168.254.3 → 192.168.1.2 / block / Default deny / state violation rule**, repeated across several seconds. It also showed a blocked DHCP broadcast `0.0.0.0:68 → 255.255.255.255:67`.
-4. These ICMP log entries **do not prove** the TCP/80 curl was blocked by that same rule. No matching TCP/80 deny entry was supplied.
-5. We discussed stateful connection tracking: permitted flows can create states that allow legitimate return packets; a stateful firewall does not guarantee that application payloads are safe.
+All host addresses are intentionally masked in this public documentation.
 
-## Expected vs actual
-| Test | Expected | Actual evidence | Assessment |
-|---|---|---|---|
-| Ubuntu HTTP listener | TCP/80 listening | Server reported running; socket output unavailable | Unverified |
-| Kali → Ubuntu HTTP | Reachability before restrictive rule | curl timeout | Failed / cause unknown |
-| Kali → Ubuntu ICMP | Subject to OPT1 policy | Default deny/state violation log entries | Observed block |
-| TCP connection state | Visible when a connection is established | No successful session captured | Not tested successfully |
+## Objective
+- Start a Python HTTP server on Ubuntu.
+- Confirm the service is reachable from Kali before applying the restrictive rule.
+- Create a specific TCP/80 BLOCK rule on the interface where Kali traffic enters.
+- Test the result from Kali using curl.
+- Understand why protocol and destination port are important match conditions.
 
-## Troubleshooting notes
-Potential causes for the HTTP timeout include interface rules, routing/return path, host firewall and adapter connectivity. None is confirmed. The earlier troubleshooting is intentionally paused while the lab topology is redesigned.
+## Step 1 — Start the HTTP server on Ubuntu
+Run this in the Ubuntu terminal:
 
-## Day 03 completion criteria
-- [ ] Establish a successful HTTP baseline in the validated topology
-- [ ] Apply a targeted rule and confirm corresponding TCP/80 logs
-- [ ] Observe an active state using a long-lived connection
-- [ ] Compare new connections with established states
-- [ ] Attach redacted screenshots and exact test outputs
+    sudo python3 -m http.server 80
 
-## Lesson
-Separate **what was observed** from **what is inferred**. A logged ICMP deny cannot be presented as proof of an HTTP deny.
+Keep the terminal open while testing. The Python server serves files from the current working directory. Use a dedicated test directory with non-sensitive sample files; do not expose personal files.
+
+## Step 2 — Baseline test from Kali
+From Kali, request the Ubuntu server:
+
+    curl -v --connect-timeout 5 http://UBUNTU_IP:80/
+
+Replace UBUNTU_IP locally with the actual Ubuntu lab address. The initial lab test returned the Ubuntu Python server's directory listing, confirming HTTP reachability before the restrictive rule was applied.
+
+## Step 3 — Configure a specific HTTP BLOCK rule
+In the firewall dashboard:
+1. Open Firewall → Rules → OPT1.
+2. Add a rule and choose **Block**.
+3. Select **IPv4** and **TCP**.
+4. Set Source to the Kali test host (KALI_IP).
+5. Set Destination to the Ubuntu server (UBUNTU_IP).
+6. Set Destination port to **HTTP (80)**.
+7. Enable logging and add a clear description, such as “Block Kali to Ubuntu HTTP test”.
+8. Save and apply the rule.
+9. Ensure the specific BLOCK rule is above any broader PASS rule that could match the same traffic.
+
+## Step 4 — Retest from Kali
+Run the same curl request:
+
+    curl -v --connect-timeout 5 http://UBUNTU_IP:80/
+
+The lab observation was that the request no longer connected after the TCP/80 BLOCK policy was applied. The exact terminal output and matching TCP log screenshot were not preserved in the current notes, so they should be attached before treating this as independently verified evidence.
+
+## Expected vs observed
+| Stage | Expected | Lab observation |
+|---|---|---|
+| Python HTTP server | Listen on Ubuntu TCP/80 | Server was started for the exercise |
+| Baseline curl | Reach Ubuntu HTTP service | Directory listing was returned |
+| After specific BLOCK | Kali cannot establish HTTP connection | Connection stopped after rule was applied |
+| Firewall live log | Matching TCP/80 block entry | Screenshot/output still required |
+
+## Troubleshooting checklist
+If the result differs, verify the server is still running, the destination address is correct, the rule is on the ingress interface, protocol is TCP, destination port is 80, source/destination are correct, and the rule is above conflicting rules. Check the firewall log for the matching TCP event. Do not infer a TCP block from an unrelated ICMP log entry.
+
+## Evidence checklist
+- [ ] Ubuntu terminal showing the Python HTTP server running
+- [ ] Kali baseline curl output showing the HTTP response
+- [ ] OPT1 rule screenshot with the source, destination, TCP and port 80 fields
+- [ ] Kali curl output after the BLOCK rule
+- [ ] Matching firewall log entry showing the blocked TCP/80 attempt
+
+## Key lesson
+A port-specific rule can control one service without blocking every protocol or port between the same hosts. TCP/80 identifies the HTTP service in this lab; it does not represent all traffic from Kali to Ubuntu.
