@@ -1,85 +1,93 @@
-# Day 04 — IP aliases and alias-based firewall policies
+# Day 04 — IP aliases and reusable firewall policies
 
-**Status: CONFIGURED — traffic verification pending.** This record reflects the lab work described in the session. It does not claim that the HTTP test succeeded.
+**Progress: Alias created and referenced by a TCP/80 PASS rule. Traffic verification is pending.**
 
 ## Business scenario
-A small organization has multiple endpoints that need the same access policy. Maintaining a separate firewall rule for every endpoint becomes difficult. An IP alias groups one or more host addresses under a reusable name, allowing a rule to reference the group.
+A company has several systems that require the same network policy. Creating and maintaining a separate rule for every host increases administrative effort and the chance of inconsistent changes. An IP alias groups host addresses under one reusable object, which can then be referenced by firewall rules.
 
 ## Security objective
-Create an IP alias, use it as a firewall rule source, and validate that the rule applies to the intended endpoint(s). Keep the rule narrowly scoped to the required destination and service.
+Create an IP alias, use it as a rule source, and validate that the rule applies only to the intended destination and service.
 
-## Lab context
-- Firewall platform: OPNsense lab (the session sometimes refers to pfSense generically).
-- Kali test host: `192.168.20.10`.
-- Ubuntu HTTP server: `192.168.1.2`.
-- HTTP service: TCP port `80`.
-- Interface context: Kali traffic enters through the OPT1-side lab network.
+## Lab roles
+- Kali Linux: test client, documented as **KALI_HOST**.
+- Ubuntu Linux: HTTP destination, documented as **UBUNTU_SERVER**.
+- Firewall: OPNsense lab dashboard.
+- Test service: HTTP over TCP destination port **80**.
 
-All addresses are lab-only examples. Mask or replace them before publishing screenshots if they reveal sensitive topology details.
+Actual IP addresses are intentionally masked in this public repository. Use the live lab configuration to substitute the real values during testing.
+
+## What is an alias?
+An alias is a named group/object containing one or more IP addresses, networks, ports or URLs (depending on alias type). Instead of repeatedly entering individual addresses in multiple rules, an administrator can refer to the alias by name.
+
+Example: an alias named **HR_HOSTS** could contain all approved HR workstation IP addresses. A single rule can then reference HR_HOSTS as its source. If a workstation is added or replaced, update the alias membership rather than recreating every rule that uses it.
+
+An alias does not itself allow or block traffic. The firewall rule defines the action; the alias supplies the match criteria.
 
 ## Configuration recorded
-1. Opened **Firewall → Aliases → IP** and created an IP alias.
-2. Added the Kali host address `192.168.20.10` as a member and saved the alias.
-3. Configured a firewall rule using the alias as the source, Ubuntu `192.168.1.2` as the destination, TCP as the protocol, destination port `80`, and **Pass** as the action.
-4. The exact alias display name and rule identifier were not captured in the transcript; confirm them from the firewall UI before adding screenshots or quoting those identifiers.
+1. Opened **Firewall → Aliases → IP**.
+2. Created an IP/host alias and entered the Kali test host address. The exact alias name shown in the UI was not captured; confirm it in the firewall before documenting a literal name.
+3. Saved the alias.
+4. Opened the relevant firewall rule editor.
+5. Selected the created alias as the **Source**.
+6. Set the destination to the Ubuntu HTTP server, protocol to **TCP**, destination port to **80**, and action to **Pass**.
+7. Saved the rule.
 
-### Important scope clarification
-Only one IP address (`192.168.20.10`) was added during this exercise. The alias demonstrates referencing a host through a reusable name, but a multi-host group has **not** yet been populated or tested. Additional host IPs can be added as separate entries in the same alias if they should receive the same policy.
+Only **one host address** was added in this session. This demonstrates alias use, but a multi-host alias has not yet been populated or tested.
 
-## Intended packet path
-```text
-Kali (192.168.20.10)
-        |
-        | TCP destination port 80
-        v
-OPNsense OPT1 firewall rule
-  Source: created IP alias
-  Destination: Ubuntu (192.168.1.2)
-  Action: Pass
-        |
-        v
-Ubuntu HTTP server (TCP/80)
-```
+## Intended policy
+| Setting | Value |
+|---|---|
+| Interface | OPT1 (confirm against actual traffic path) |
+| Action | PASS |
+| Address family | IPv4 |
+| Protocol | TCP |
+| Source | Created Kali host alias (KALI_HOST) |
+| Destination | Ubuntu HTTP server (UBUNTU_SERVER) |
+| Destination port | HTTP / TCP 80 |
+| Logging | Enable for validation |
+| Description | Allow aliased Kali test host to Ubuntu HTTP |
 
-The firewall rule only governs traffic that actually traverses the firewall on the interface where the rule is applied. Confirm the interface and routing path before interpreting test results.
+## Traffic path
+    KALI_HOST  →  Firewall OPT1 rule  →  UBUNTU_SERVER:TCP/80
 
-## Validation plan — NOT YET VERIFIED
+The rule only filters traffic that actually traverses the firewall on the interface where it is applied. If two VMs share the same Layer-2 network, their direct traffic may bypass the firewall.
+
+## Validation plan — pending
 From Kali, run:
 
-```bash
-curl -v --connect-timeout 5 http://192.168.1.2/
-```
+    curl -v --connect-timeout 5 http://UBUNTU_SERVER:80/
 
-Expected if the path, server, and rule are all correct: an HTTP response from Ubuntu. Record the actual curl output and timestamp.
+Replace UBUNTU_SERVER locally with the actual Ubuntu lab address. If the rule and network path are correct and the Python HTTP service is running, the request should receive an HTTP response.
 
 Then:
-- [ ] Confirm the corresponding TCP/80 pass entry in the firewall live log.
-- [ ] Confirm the connection/state entry while the session is active, if available.
-- [ ] Add a temporary, narrowly scoped block test only after capturing the pass baseline.
-- [ ] Verify the block using both curl output and a matching firewall log entry.
-- [ ] Remove or disable the temporary test block and confirm the intended pass policy again.
+- [ ] Capture the actual curl output and timestamp.
+- [ ] Confirm a matching TCP/80 PASS entry in the firewall live log.
+- [ ] Confirm the active connection/state if available.
+- [ ] Add a second lab host to the same alias only if one is available and intended to receive the same policy.
+- [ ] Verify that the same rule matches the second host.
+- [ ] Optionally perform a controlled BLOCK test after capturing the PASS baseline.
 
-A curl timeout alone does not prove that the alias rule blocked the traffic. Check routing, interface selection, server listening state, host firewall and firewall logs.
+A timeout alone does not prove the alias rule blocked traffic. Check routing, ingress interface, server listener, host firewall and matching firewall log.
 
 ## Expected vs actual
-| Item | Expected | Actual status |
+| Item | Expected | Current record |
 |---|---|---|
-| IP alias | Contains Kali host address | Created and saved, according to session |
-| Alias as rule source | Rule references the alias | Configured, according to session |
-| TCP/80 pass rule | Kali alias → Ubuntu host | Entered; screenshot/rule ID pending |
-| HTTP request | Ubuntu returns HTTP response | Not yet tested / output not supplied |
-| Firewall log | Matching TCP/80 pass event | Not yet captured |
-| Multi-host alias | Multiple host addresses share one rule | Not done; only one address added |
+| IP alias | Named host object exists | Created and saved |
+| Alias membership | Contains the Kali test host | One host address added |
+| Firewall rule | Alias → Ubuntu server, TCP/80, PASS | Entered in rule editor |
+| HTTP test | Ubuntu returns an HTTP response | Not yet reported |
+| Firewall log | Matching TCP/80 PASS event | Not yet captured |
+| Multiple hosts | One alias contains multiple host addresses | Not yet done |
 
 ## Evidence checklist
-- [ ] Alias details screenshot (name and address visible; sensitive details masked)
-- [ ] Firewall rule screenshot (interface, action, protocol, source alias, destination and port)
-- [ ] Kali curl output with timestamp
-- [ ] Matching firewall log entry
-- [ ] Optional block-test output and corresponding deny log
+- [ ] Alias configuration screenshot with address values masked
+- [ ] OPT1 rule screenshot showing alias source and TCP/80 destination
+- [ ] Kali curl output
+- [ ] Matching firewall live-log entry
+- [ ] Optional second-host test evidence
 
-## Lesson
-An alias is a reusable address object, not a firewall rule by itself. The rule defines the action; the alias supplies one or more source or destination addresses. A one-host alias can be useful, and the same alias can later contain multiple hosts.
+## Key lesson
+Aliases make firewall policies easier to maintain. One alias can contain multiple hosts, and one rule can reference that alias. The alias is the reusable address group; the firewall rule still determines PASS or BLOCK.
 
-## Next step
-Complete the HTTP pass test and collect log evidence. After that, test a controlled block and then add another host address to demonstrate that one rule can cover multiple systems.
+## Next action
+Complete the HTTP PASS test and collect its log evidence. Then test a controlled BLOCK policy and, if a second host is available, add it to the alias to demonstrate multi-host grouping.
