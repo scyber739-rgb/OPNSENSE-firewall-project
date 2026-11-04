@@ -6,18 +6,18 @@ Each challenge includes: business scenario, security objective, network path, pr
 |---|---|---|
 | 01 | Firewall fundamentals: interfaces, PASS/BLOCK, logs | Basic policy evidence |
 | 02 | Rule order, source/destination matching, conflicting policies | Rule decision matrix |
-| 03 | Internal server protection and stateful inspection | HTTP/ICMP tests and state analysis |
-| 04 | WAN/LAN topology and inbound NAT port forwarding | Windows-to-Ubuntu HTTP publication |
-| 05 | Outbound NAT, 1:1 NAT, reflection and translation diagnostics | NAT packet-path comparison |
-| 06 | Aliases, schedules, protocol-specific policies | Maintainable policy set |
-| 07 | VLANs, DMZ and segmentation | Segmentation validation matrix |
-| 08 | Gateways, multi-WAN and policy-based routing | Failover / routing study |
-| 09 | Suricata IDS/IPS and alert tuning | Controlled detection evidence |
-| 10 | DNS controls and egress filtering | Egress policy test report |
-| 11 | WireGuard VPN and access restrictions | Remote-access policy validation |
-| 12 | Firewall hardening, admin access, backup and recovery | Hardening checklist |
-| 13 | Centralized logging, SIEM and alert investigation | Correlated incident timeline |
-| 14 | Packet capture, incident response and rule regression | Security test report |
-| 15 | Enterprise capstone and architecture review | Final audit + interview defense |
+| 03 | Protocol/port rules and stateful inspection (ICMP, HTTP, SSH) | Protocol-specific test results |
+| 04 | IP aliases and alias-based firewall policies | Reusable host groups and verified policy tests |
+| 05 | Network segmentation and VLANs | Segmentation validation matrix |
+| 06 | Outbound NAT and address translation | NAT packet-path comparison |
+| 07 | Port forwarding and inbound access control | Controlled external-to-internal service test |
+| 08 | DHCP and DNS security | Addressing and name-resolution policy tests |
+| 09 | Firewall logs and monitoring | Evidence-backed event investigation |
+| 10 | VPN (OpenVPN/IPsec) | Secure remote-access validation |
+| 11 | High availability (CARP) and failover | Primary/backup failover test |
+| 12 | IDS/IPS with Suricata | Controlled detection and prevention evidence |
+| 13 | Advanced policies, floating rules and schedules | Policy review and test matrix |
+| 14 | Troubleshooting and security auditing | Regression and troubleshooting report |
+| 15 | Enterprise firewall deployment capstone | Final architecture, audit and interview defense |
 
 **Scope note:** Some advanced labs may require additional virtual adapters, VLAN-capable topology or resources. Plan changes and skipped items must be documented explicitly rather than claimed complete.
